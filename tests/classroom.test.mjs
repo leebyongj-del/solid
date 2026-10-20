@@ -1,0 +1,39 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile,readdir} from 'node:fs/promises';import {createRequire} from 'node:module';import {classroom} from '../lib/classroom-handler.mjs';import {studentVision} from '../lib/vision-gateway.mjs';import {teacherLogin} from '../lib/teacher-login-handler.mjs';import {hash} from '../lib/access.mjs';
+const require=createRequire(import.meta.url),wrangler=createRequire(require.resolve('wrangler/package.json')),{Miniflare}=wrangler('miniflare');
+test('teacher-only administration, student isolation, upload retries, closure and AI authorization',async()=>{
+ const mf=new Miniflare({modules:true,script:'export default {fetch(){return new Response("ok")}}',compatibilityDate:'2026-05-15',d1Databases:['DB'],r2Buckets:['BUCKET']});
+ try{const env={DB:await mf.getD1Database('DB'),BUCKET:await mf.getR2Bucket('BUCKET'),TEACHER_SESSION_SECRET:'test-session-secret-at-least-thirty-two-bytes',TEACHER_PIN_HASH:await hash('864209'),ANTHROPIC_API_KEY:'sk-ant-test-not-real'};
+ const migrationDir=new URL('../drizzle/',import.meta.url);for(const file of (await readdir(migrationDir)).filter(f=>f.endsWith('.sql')).sort()){const sql=await readFile(new URL(file,migrationDir),'utf8');for(const statement of sql.split('--> statement-breakpoint'))if(statement.trim())await env.DB.prepare(statement).run();}
+ const loginRequest=pin=>new Request('https://school.test/api/teacher-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
+ let login=await teacherLogin(loginRequest('000000'),env);assert.equal(login.status,401);login=await teacherLogin(loginRequest('864209'),env);assert.equal(login.status,200);const teacherCookie=login.headers.get('Set-Cookie').split(';')[0];assert.match(login.headers.get('Set-Cookie'),/HttpOnly; Secure; SameSite=Strict/);
+ const req=(body,method='POST',who='')=>new Request('https://school.test/api/classrooms',{method,headers:{'Content-Type':'application/json',...(who==='teacher'?{Cookie:teacherCookie}:who?{Authorization:'Student '+who}:{})},body:JSON.stringify(body)});
+ const get=(path,who='')=>new Request('https://school.test/api/classrooms'+path,{headers:who==='teacher'?{Cookie:teacherCookie}:who?{Authorization:'Student '+who}:{}});
+ let res=await classroom(req({action:'create',title:'unauthorized'}),env);assert.equal(res.status,403);const spoof=new Request('https://school.test/api/classrooms',{method:'POST',headers:{'Content-Type':'application/json','oai-authenticated-user-id':'registered-teacher'},body:JSON.stringify({action:'create'})});assert.equal((await classroom(spoof,env)).status,403);
+ res=await classroom(req({action:'create',title:'중1 공개수업'},'POST','teacher'),env);assert.equal(res.status,201);const room=await res.json();assert.match(room.code,/^[A-Z2-9]{6}$/);assert.ok(!room.teacherToken);
+ res=await classroom(get('?action=rooms'),env);assert.equal(res.status,403);res=await classroom(get('?action=rooms','teacher'),env);assert.equal((await res.json()).rooms.length,1);
+ res=await classroom(get('?code='+room.code),env);assert.equal(res.status,403);
+ const join=async group=>{const r=await classroom(req({action:'join',code:room.code,group}),env);assert.equal(r.status,201);return r.json();};const a=await join('1모둠'),b=await join('2모둠');
+ const upload={action:'submit',code:room.code,id:crypto.randomUUID(),editToken:crypto.randomUUID()+crypto.randomUUID(),group:'위조한 모둠명',title:'복도 화분',guess:'회전체',reason:'위아래 원 모양 밑면의 크기가 다르다.',model:'{"id":"truncated"}',photo:'data:image/jpeg;base64,/9j/2Q=='};
+ res=await classroom(req(upload),env);assert.equal(res.status,403);res=await classroom(req(upload,'POST',a.studentToken),env);assert.equal(res.status,201);
+ res=await classroom(req(upload,'POST',a.studentToken),env);assert.equal(res.status,200);assert.equal((await res.json()).alreadySaved,true);
+ res=await classroom(get('?code='+room.code,'teacher'),env);let data=await res.json();assert.equal(data.items.length,1);assert.equal(data.items[0].group_name,'1모둠');assert.ok(!('edit_hash'in data.items[0]));assert.ok(!('teacher_hash'in data.room));
+ res=await classroom(get('?code='+room.code,b.studentToken),env);assert.equal((await res.json()).items.length,0);
+ res=await classroom(get(`?code=${room.code}&photo=${upload.id}`,b.studentToken),env);assert.equal(res.status,403);
+ res=await classroom(get(`?code=${room.code}&photo=${upload.id}`,'teacher'),env);assert.equal(res.status,200);assert.equal((await res.arrayBuffer()).byteLength,4);
+ const update={...upload,action:'update',completed:true,reflection:'위아래 밑면의 크기를 비교해 원뿔대로 나타낼 수 있다고 판단했다.'};
+ res=await classroom(req(update,'PATCH',b.studentToken),env);assert.equal(res.status,403);
+ res=await classroom(req(update,'PATCH',a.studentToken),env);assert.equal(res.status,200);
+ res=await classroom(get('?code='+room.code,'teacher'),env);data=await res.json();assert.equal(data.items[0].status,'탐구 완료');assert.ok(data.items[0].reflection.includes('원뿔대'));
+ res=await classroom(req({action:'phase',code:room.code,phase:4},'PATCH',a.studentToken),env);assert.equal(res.status,403);
+ let providerCalls=0;const fake=async()=>{providerCalls++;return Response.json({stop_reason:'tool_use',content:[{type:'tool_use',name:'propose_models',input:{candidates:[{id:'truncated',n:6,reason:'화분 모형'}],question:'밑면 크기는 같은가요?'}}]});};
+ res=await studentVision(req({code:room.code,photo:upload.photo}),env,fake);assert.equal(res.status,403);assert.equal(providerCalls,0);
+ res=await studentVision(req({code:room.code,photo:upload.photo},'POST',a.studentToken),env,fake);assert.equal(res.status,200);assert.equal(providerCalls,1);
+ await env.DB.prepare('UPDATE classrooms SET analysis_count=200 WHERE code=?').bind(room.code).run();res=await studentVision(req({code:room.code,photo:upload.photo},'POST',a.studentToken),env,fake);assert.equal(res.status,429);assert.equal(providerCalls,1);
+ res=await classroom(req({action:'phase',code:room.code,phase:4},'PATCH','teacher'),env);assert.equal(res.status,200);
+ res=await classroom(req({...upload,id:crypto.randomUUID()},'POST',a.studentToken),env);assert.equal(res.status,409);
+ res=await classroom(req(upload,'POST',a.studentToken),env);assert.equal(res.status,200);assert.equal((await res.json()).alreadySaved,true);
+ res=await classroom(req(update,'PATCH',a.studentToken),env);assert.equal(res.status,409);
+ res=await classroom(req({action:'join',code:room.code,group:'3모둠'}),env);assert.equal(res.status,409);
+ const time=Date.now()+700000;for(let i=0;i<8;i++)assert.equal((await teacherLogin(loginRequest('000000'),env,time)).status,401);assert.equal((await teacherLogin(loginRequest('864209'),env,time)).status,429);const logout=await teacherLogin(new Request('https://school.test/api/teacher-session',{method:'DELETE'}),env);assert.match(logout.headers.get('Set-Cookie'),/Max-Age=0/);
+ }finally{await mf.dispose();}
+});
