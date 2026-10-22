@@ -1,4 +1,4 @@
-const CACHE='solid-student-shell-v7';
+const CACHE='solid-student-shell-v8';
 const studentPath=path=>path==='/student'||path==='/student/';
 const asset=url=>url.origin===self.location.origin&&/\.(?:js|css|woff2?|svg)$/.test(url.pathname)&&!url.pathname.includes('api/');
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(['/','/student','/offline.html']);await self.skipWaiting();})());});
