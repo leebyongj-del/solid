@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFile,readdir} from 'node:fs/promises';import {createRequire} from 'node:module';import {classroom} from '../lib/classroom-handler.mjs';import {studentVision} from '../lib/vision-gateway.mjs';import {teacherLogin} from '../lib/teacher-login-handler.mjs';import {hash} from '../lib/access.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile,readdir} from 'node:fs/promises';import {createRequire} from 'node:module';import {classroom} from '../lib/classroom-handler.mjs';import {studentVision} from '../lib/vision-gateway.mjs';import {teacherLogin} from '../lib/teacher-login-handler.mjs';import {hash} from '../lib/access.mjs';import {challenge} from '../lib/challenge-handler.mjs';
 const require=createRequire(import.meta.url),wrangler=createRequire(require.resolve('wrangler/package.json')),{Miniflare}=wrangler('miniflare');
 test('teacher-only administration, student isolation, upload retries, closure and AI authorization',async()=>{
  const mf=new Miniflare({modules:true,script:'export default {fetch(){return new Response("ok")}}',compatibilityDate:'2026-05-15',d1Databases:['DB'],r2Buckets:['BUCKET']});
@@ -28,12 +28,27 @@ test('teacher-only administration, student isolation, upload retries, closure an
  let providerCalls=0;const fake=async()=>{providerCalls++;return Response.json({stop_reason:'tool_use',content:[{type:'tool_use',name:'propose_models',input:{candidates:[{id:'truncated',n:6,reason:'화분 모형'}],question:'밑면 크기는 같은가요?'}}]});};
  res=await studentVision(req({code:room.code,photo:upload.photo}),env,fake);assert.equal(res.status,403);assert.equal(providerCalls,0);
  res=await studentVision(req({code:room.code,photo:upload.photo},'POST',a.studentToken),env,fake);assert.equal(res.status,200);assert.equal(providerCalls,1);
+ res=await challenge(req({action:'new',code:room.code}),env,fake);assert.equal(res.status,403);
+ res=await challenge(req({action:'new',code:room.code},'POST',a.studentToken),env,fake);assert.equal(res.status,200);const problem=(await res.json()).problem;assert.ok(problem.statement);assert.ok(!('truth'in problem));
+ let coachCalls=0;const coach=async(url,options)=>{coachCalls++;const body=JSON.parse(options.body);assert.equal(body.model,'claude-sonnet-4-6');assert.ok(body.system.includes('정답 기준'));assert.ok(body.messages[0].content.includes('밑면'));return Response.json({stop_reason:'tool_use',content:[{type:'tool_use',name:'submit_feedback',input:{feedback:'밑면과 옆면을 나누어 세어 볼까요?',solved:false}}]});};
+ res=await challenge(req({action:'reply',code:room.code,problemId:problem.id,answer:'밑면을 확인해야 해요.'},'POST',a.studentToken),env,coach);assert.equal(res.status,200);assert.equal((await res.json()).solved,false);assert.equal(coachCalls,1);
+ res=await challenge(req({action:'reply',code:room.code,problemId:'invalid',answer:'답'},'POST',a.studentToken),env,coach);assert.equal(res.status,400);assert.equal(coachCalls,1);
  await env.DB.prepare('UPDATE classrooms SET analysis_count=200 WHERE code=?').bind(room.code).run();res=await studentVision(req({code:room.code,photo:upload.photo},'POST',a.studentToken),env,fake);assert.equal(res.status,429);assert.equal(providerCalls,1);
  res=await classroom(req({action:'phase',code:room.code,phase:4},'PATCH','teacher'),env);assert.equal(res.status,200);
  res=await classroom(req({...upload,id:crypto.randomUUID()},'POST',a.studentToken),env);assert.equal(res.status,409);
  res=await classroom(req(upload,'POST',a.studentToken),env);assert.equal(res.status,200);assert.equal((await res.json()).alreadySaved,true);
  res=await classroom(req(update,'PATCH',a.studentToken),env);assert.equal(res.status,409);
  res=await classroom(req({action:'join',code:room.code,group:'3모둠'}),env);assert.equal(res.status,409);
+ // Deletion is owned, idempotent, and allowed after closure; late uploads cannot resurrect it.
+ res=await classroom(req({...upload,action:'delete'},'DELETE',b.studentToken),env);assert.equal(res.status,403);
+ res=await classroom(req({...upload,action:'delete'},'DELETE',a.studentToken),env);assert.equal(res.status,200);
+ res=await classroom(req({...upload,action:'delete'},'DELETE',a.studentToken),env);assert.equal(res.status,200);
+ res=await classroom(get('?code='+room.code,'teacher'),env);assert.equal((await res.json()).items.length,0);
+ assert.equal(await env.BUCKET.get(room.code+'/'+a.participantId+'/'+upload.id),null);
+ res=await classroom(req(upload,'POST',a.studentToken),env);assert.equal(res.status,410);
+ res=await classroom(get(`?code=${room.code}&photo=${upload.id}`,'teacher'),env);assert.equal(res.status,403);
+ const late={...upload,id:crypto.randomUUID()};res=await classroom(req({...late,action:'delete'},'DELETE',a.studentToken),env);assert.equal(res.status,200);
+ res=await classroom(req(late,'POST',a.studentToken),env);assert.equal(res.status,410);
  const time=Date.now()+700000;for(let i=0;i<8;i++)assert.equal((await teacherLogin(loginRequest('000000'),env,time)).status,401);assert.equal((await teacherLogin(loginRequest('864209'),env,time)).status,429);const logout=await teacherLogin(new Request('https://school.test/api/teacher-session',{method:'DELETE'}),env);assert.match(logout.headers.get('Set-Cookie'),/Max-Age=0/);
  }finally{await mf.dispose();}
 });

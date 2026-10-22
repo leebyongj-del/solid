@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {problems,drawProblem,publicProblem} from '../lib/challenge-bank.mjs';
+import {mesh,counts,shapePresets} from '../lib/geometry.mjs';
+test('random draw excludes seen problems until bank is exhausted and never exposes solutions',()=>{const seen=[];for(let i=0;i<problems.length;i++){const p=drawProblem(seen);assert.ok(!seen.includes(p.id));seen.push(p.id);assert.ok(!('truth'in publicProblem(p)));}assert.ok(drawProblem(seen));});
+test('counting problems use accurate geometry and preset identifiers are unique',()=>{for(const p of problems){const m=mesh(p.model.id,p.model.n);assert.ok(m.faces.length);if(p.id.startsWith('prism-')){assert.equal(counts(m).faces,p.model.n+2);assert.equal(counts(m).edges,3*p.model.n);}if(p.id.startsWith('pyramid-'))assert.equal(counts(m).vertices,p.model.n+1);}const presets=shapePresets();assert.equal(new Set(presets.map(p=>p.key)).size,presets.length);assert.equal(presets.length,79);});
