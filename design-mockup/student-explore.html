@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>학생 탐구 화면 목업 · 입체 탐험대</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  body.student { min-height: 100dvh; height: 100dvh; display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; }
+
+  /* ── 상단바: 한 줄이 전부 ───────────────────────── */
+  .bar {
+    display: flex; align-items: center; gap: 14px; height: 68px; padding: 0 18px;
+    background: rgba(255, 250, 242, .96); border-bottom: 1px solid var(--line);
+  }
+  .bar .back { flex: none; gap: 6px; padding: 0 12px 0 8px; }
+  .bar .back svg { width: 22px; height: 22px; }
+  .thumbs { display: flex; gap: 8px; align-items: center; }
+  .thumb {
+    position: relative; width: 52px; height: 52px; border-radius: 12px; padding: 0; overflow: hidden;
+    border: 2px solid transparent; background: var(--sunk);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .prog { position: absolute; left: 4px; right: 4px; bottom: 4px; display: flex; gap: 2px; }
+  .thumb .prog i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(62, 49, 56, .18); }
+  .thumb .prog i.on { background: var(--plum); box-shadow: none; }
+  .thumb.is-current { border-color: var(--plum); box-shadow: 0 0 0 3px var(--plum-soft); }
+  .thumb.is-done::after {
+    content: ''; position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ok-dot) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.3l2.2 2.2 4.8-5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat;
+  }
+  .goal { font-size: 14px; color: var(--muted); line-height: 1.3; white-space: nowrap; }
+  .goal b { display: block; color: var(--ink); font-size: 15px; }
+  .phase {
+    margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; line-height: 1.3;
+    border-radius: var(--r-chip); background: var(--peach); color: var(--ink); font-size: 15px; white-space: nowrap;
+  }
+  .phase b { font-weight: 800; }
+  .phase.flash { animation: flash 1.4s var(--ease-out); }
+  @keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(152, 74, 102, .45); } 100% { box-shadow: 0 0 0 14px rgba(152, 74, 102, 0); } }
+  .who { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .who b { color: var(--ink); font-size: 16px; }
+  .sync { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border-radius: var(--r-chip); font-size: 14px; font-weight: 600; }
+  .sync::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .sync.ok { background: var(--ok-bg); color: var(--ok-ink); }
+  .sync.wait { background: var(--wait-bg); color: var(--wait-ink); }
+
+  /* ── 교사 단계 변경 알림 ───────────────────────── */
+  .announce {
+    display: none; align-items: center; gap: 14px; margin: 12px 18px 0; padding: 12px 14px 12px 18px;
+    background: var(--ink); color: #fff; border-radius: 16px; box-shadow: var(--shadow-float);
+    animation: drop .5s var(--ease-out);
+  }
+  .announce.show { display: flex; }
+  .announce p { font-size: 16px; line-height: 1.45; }
+  .announce p small { display: block; color: #e9dde3; font-size: 14px; }
+  .announce .btn { min-height: 44px; font-size: 15px; padding: 0 16px; }
+  .announce .btn-primary { margin-left: auto; background: #fff; color: var(--plum); box-shadow: none; }
+  .announce .btn-primary:hover { background: #fff0f4; }
+  .announce .btn-quiet { color: #fff; }
+  .announce .btn-quiet:hover { background: rgba(255, 255, 255, .12); }
+  @keyframes drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+  /* ── 작업대: 사진 + 할 일 카드 ─────────────────── */
+  .bench { min-height: 0; display: grid; gap: 18px; padding: 16px 18px 18px; }
+  .photo-pane { min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+  .photo { margin: 0; position: relative; border-radius: var(--r-card); overflow: hidden; background: var(--sunk); box-shadow: var(--shadow-card); }
+  .photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+  .photo figcaption {
+    position: absolute; left: 12px; bottom: 12px; display: flex; align-items: baseline; gap: 8px;
+    padding: 8px 14px; border-radius: 12px; background: rgba(255, 255, 255, .94); color: var(--ink); font-weight: 800; font-size: 17px;
+  }
+  .photo figcaption span { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .side { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+
+  .note { display: flex; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--paper); border: 1px solid var(--line); font-size: 15px; line-height: 1.6; }
+  .note svg { width: 22px; height: 22px; flex: none; margin-top: 1px; color: var(--plum); }
+  .note.warm { background: #fff6e6; border-color: #f3e2c2; }
+  .note h3 { font-size: 15px; margin-bottom: 2px; }
+
+  .task {
+    min-height: 0; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+    background: var(--paper); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  }
+  .rail { list-style: none; margin: 0; padding: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-bottom: 1px solid var(--line); }
+  .rail button {
+    width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 12px; font-size: 15px; font-weight: 700; color: var(--muted);
+  }
+  .rail .num { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--line-strong); font-size: 13px; }
+  .rail .done button { color: var(--ink); }
+  .rail .done button:hover { background: var(--sunk); }
+  .rail .done .num { background: var(--plum-soft); border-color: transparent; color: var(--plum); }
+  .rail .now button { background: var(--plum); color: #fff; cursor: default; }
+  .rail .now .num { border-color: rgba(255, 255, 255, .7); }
+  .rail .todo button { cursor: not-allowed; }
+
+  .task-scroll { min-height: 0; overflow: auto; padding: 22px 26px 26px; scroll-behavior: smooth; }
+  .task-head { margin-bottom: 20px; }
+  .task-head[hidden] { display: none; }
+  .task-head h1 { font-size: 26px; font-weight: 800; }
+  .task-head p { margin-top: 4px; color: var(--muted); font-size: 16px; }
+
+  .task-actions { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--line); background: rgba(255, 255, 255, .97); }
+  .task-actions .spacer { flex: 1; }
+  .task-actions .why { font-size: 14px; color: var(--muted); text-align: right; }
+
+  /* 입력 */
+  .field { display: block; margin-bottom: 22px; }
+  .field > span, fieldset > legend { display: block; margin-bottom: 8px; color: var(--ink); font-size: 16px; font-weight: 700; }
+  fieldset { margin: 0 0 22px; padding: 0; border: 0; }
+  input[type=text], textarea {
+    width: 100%; min-height: 52px; padding: 12px 16px; border-radius: 12px; border: 1.5px solid var(--line-strong);
+    background: #fff; font-size: 18px; color: var(--ink); line-height: 1.6;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea { min-height: 116px; resize: vertical; }
+  input::placeholder, textarea::placeholder { color: #85767f; }
+  input:focus, textarea:focus { outline: none; border-color: var(--plum); box-shadow: 0 0 0 4px var(--plum-soft); }
+  [aria-invalid="true"] { border-color: var(--err-ink) !important; box-shadow: 0 0 0 4px var(--err-bg) !important; }
+  .field-error { display: flex; gap: 6px; align-items: center; margin-top: 8px; color: var(--err-ink); font-size: 15px; font-weight: 600; }
+  .field-error svg { width: 18px; height: 18px; flex: none; }
+
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice {
+    position: relative; display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 2px 12px; text-align: left;
+    min-height: 76px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line-strong); background: #fff;
+    transition: border-color .15s, background-color .15s;
+  }
+  .choice:hover { border-color: var(--plum-mark); }
+  .choice .ic { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
+  .choice .ic svg { width: 26px; height: 26px; }
+  .choice strong { color: var(--ink); font-size: 17px; line-height: 1.3; }
+  .choice small { color: var(--muted); font-size: 14px; line-height: 1.4; }
+  .choice[aria-pressed="true"] { border-width: 2px; }
+  .choice[aria-pressed="true"]::after {
+    content: ''; position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--plum) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M6.5 11.3l3 3 6-6.5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/22px no-repeat;
+  }
+  .k-poly .ic { background: var(--poly-bg); color: var(--poly-ink); } .k-poly[aria-pressed="true"] { background: var(--poly-bg); border-color: var(--poly-mark); }
+  .k-rev .ic { background: var(--rev-bg); color: var(--rev-ink); }   .k-rev[aria-pressed="true"] { background: var(--rev-bg); border-color: var(--rev-mark); }
+  .k-mix .ic { background: var(--mix-bg); color: var(--mix-ink); }   .k-mix[aria-pressed="true"] { background: var(--mix-bg); border-color: var(--mix-mark); }
+  .k-hold .ic { background: var(--hold-bg); color: var(--hold-ink); } .k-hold[aria-pressed="true"] { background: var(--hold-bg); border-color: var(--hold-mark); }
+
+  .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border-radius: var(--r-chip); font-size: 14px; font-weight: 700; }
+  .chip svg { width: 18px; height: 18px; }
+  .chip.poly { background: var(--poly-bg); color: var(--poly-ink); } .chip.rev { background: var(--rev-bg); color: var(--rev-ink); }
+  .chip.mix { background: var(--mix-bg); color: var(--mix-ink); }   .chip.hold { background: var(--hold-bg); color: var(--hold-ink); }
+
+  /* 2단계 — 후보 비교 */
+  .ai-intro { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; padding: 20px; border-radius: 18px; background: var(--sunk); }
+  .ai-intro .faint { display: flex; gap: 4px; }
+  .ai-intro .faint svg { width: 52px; height: 52px; opacity: .8; }
+  .ai-intro h2 { font-size: 19px; margin-bottom: 4px; }
+  .ai-intro p { font-size: 15px; color: var(--muted); }
+  .ai-intro .row { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+  .cands-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .cands-head p { font-size: 15px; color: var(--muted); }
+  .cands-head .btn-quiet { margin-left: auto; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+  .cands-head .btn-quiet svg { width: 16px; height: 16px; }
+  .cands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .cand { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 18px; border: 1.5px solid var(--line); background: #fff; }
+  .cand .stage { display: grid; place-items: center; height: 132px; border-radius: 12px; background: var(--sunk) radial-gradient(circle, rgba(90, 68, 80, .12) 1px, transparent 1.4px) 0 0 / 14px 14px; }
+  .cand .stage svg { width: 112px; height: 112px; animation: turn 6s ease-in-out infinite alternate; }
+  .paused .cand .stage svg { animation-play-state: paused; }
+  @keyframes turn { from { transform: perspective(300px) rotateY(-24deg); } to { transform: perspective(300px) rotateY(24deg); } }
+  .cand h3 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .cand p { font-size: 14px; line-height: 1.55; }
+  .cand p.simp { color: var(--muted); }
+  .cand .btn { margin-top: auto; min-height: 46px; font-size: 15px; }
+  .cand.sel { border: 2px solid var(--plum); background: #fffbfc; }
+  .cand.sel .btn { background: var(--plum); color: #fff; border-color: var(--plum); }
+  .ask { margin-top: 14px; }
+  .fail { display: grid; gap: 12px; padding: 20px; border-radius: 18px; background: var(--err-bg); }
+  .fail h2 { font-size: 19px; color: var(--err-ink); display: flex; gap: 8px; align-items: center; }
+  .fail h2 svg { width: 22px; height: 22px; }
+  .fail p { font-size: 15px; color: var(--text); }
+  .fail .row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* 3단계 — 성질 탐구 */
+  .model-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .model-row .mini { width: 52px; height: 52px; border-radius: 12px; background: var(--sunk); display: grid; place-items: center; }
+  .model-row .mini svg { width: 42px; height: 42px; }
+  .model-row div small { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .model-row div strong { font-size: 20px; color: var(--ink); }
+  .model-row .btn { margin-left: auto; min-height: 46px; font-size: 15px; }
+  .picker { margin-bottom: 14px; padding: 14px; border-radius: 16px; background: var(--sunk); }
+  .picker p { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+  .picker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .picker-grid button { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; min-height: 92px; border-radius: 12px; background: #fff; border: 1.5px solid transparent; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .picker-grid button svg { width: 52px; height: 52px; }
+  .picker-grid button[aria-pressed="true"] { border-color: var(--plum); background: #fffbfc; }
+  .picker .more { margin-top: 8px; font-size: 15px; color: var(--plum); }
+  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--sunk); margin-bottom: 12px; }
+  .modes button { min-height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; font-weight: 700; color: var(--muted); }
+  .modes button svg { width: 18px; height: 18px; }
+  .modes button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(62, 49, 56, .12); }
+  .modes button:disabled { opacity: .5; cursor: not-allowed; }
+  .viewer {
+    position: relative; display: grid; place-items: center; height: 300px; border-radius: 18px; overflow: hidden;
+    background: #fdf8f4 radial-gradient(circle, rgba(90, 68, 80, .13) 1px, transparent 1.4px) 0 0 / 18px 18px;
+    border: 1px solid var(--line);
+  }
+  .viewer .art { width: min(78%, 420px); height: 86%; display: grid; place-items: center; transition: transform .45s var(--ease-out), opacity .3s; }
+  .viewer .art svg { width: 100%; height: 100%; }
+  .viewer .tools { position: absolute; right: 10px; top: 10px; display: grid; gap: 6px; }
+  .viewer .tools button { width: 44px; height: 44px; border-radius: 12px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; color: var(--ink); }
+  .viewer .tools svg { width: 20px; height: 20px; }
+  .viewer .counts { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; }
+  .viewer .counts span { padding: 4px 10px; border-radius: 10px; background: #fff; border: 1px solid var(--line); font-size: 14px; color: var(--text); }
+  .viewer .counts b { color: var(--ink); }
+  .scrub { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--muted); }
+  .scrub input { flex: 1; height: 44px; accent-color: var(--plum); }
+  .scrub button { width: 44px; height: 44px; border-radius: 12px; background: var(--plum-soft); color: var(--plum); display: grid; place-items: center; }
+  .scrub button svg { width: 20px; height: 20px; }
+  .hint { margin-top: 12px; }
+
+  .mission { display: grid; gap: 6px; padding: 14px; border-radius: 16px; background: var(--paper); border: 1px solid var(--line); }
+  .mission h3 { font-size: 15px; margin: 0 0 4px 2px; }
+  .mission label { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 4px 8px; border-radius: 10px; font-size: 15px; color: var(--text); cursor: pointer; }
+  .mission label:hover { background: var(--sunk); }
+  .mission input { width: 22px; height: 22px; accent-color: var(--plum); flex: none; }
+  .mission input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--plum-mark); }
+
+  /* 4단계 — 기록하기 */
+  .then-now { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 10px; margin-bottom: 22px; }
+  .then-now > div { padding: 14px 16px; border-radius: 16px; background: var(--sunk); }
+  .then-now small { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .then-now p { font-size: 15px; margin-top: 6px; }
+  .then-now .arrow { align-self: center; color: var(--plum); }
+  .then-now .arrow svg { width: 26px; height: 26px; }
+  .then-now .model { display: flex; gap: 12px; align-items: center; }
+  .then-now .model svg { width: 56px; height: 56px; flex: none; }
+  .then-now .model strong { font-size: 19px; color: var(--ink); }
+  .starters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .starters button { min-height: 38px; padding: 0 12px; border-radius: var(--r-chip); background: var(--plum-soft); color: var(--plum); font-size: 14px; font-weight: 700; }
+  .starters button:hover { background: #ffd9e5; }
+
+  /* 완료 */
+  .finale { display: grid; gap: 16px; }
+  .finale .seal { display: flex; align-items: center; gap: 12px; }
+  .finale .seal i { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--ok-dot); color: #fff; animation: pop .6s var(--ease-out) both; }
+  .finale .seal i svg { width: 28px; height: 28px; }
+  @keyframes pop { from { transform: scale(.4) rotate(-20deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .finale .seal h1 { line-height: 1.25; }
+  .finale .seal p { color: var(--muted); font-size: 15px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pair figure { margin: 0; border-radius: 16px; overflow: hidden; background: var(--sunk); position: relative; }
+  .pair img, .pair .m { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+  .pair .m { display: grid; place-items: center; background: #fdf8f4 radial-gradient(circle, rgba(90, 68, 80, .13) 1px, transparent 1.4px) 0 0 / 16px 16px; }
+  .pair .m svg { width: 62%; height: 80%; }
+  .pair figcaption { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px; border-radius: 10px; background: rgba(255, 255, 255, .94); font-size: 14px; font-weight: 800; color: var(--ink); }
+  .story { display: grid; gap: 8px; padding: 16px; border-radius: 16px; border: 1px solid var(--line); }
+  .story p { font-size: 16px; }
+  .story b { color: var(--ink); }
+  .meter { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--ok-bg); color: var(--ok-ink); font-weight: 700; }
+  .meter .dots { display: flex; gap: 6px; }
+  .meter .dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ok-dot); }
+  .meter .dots i.on { background: var(--ok-dot); }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ── 가로: 사진 왼쪽, 할 일 오른쪽 ─────────────── */
+  @media (min-aspect-ratio: 1/1) {
+    .bench { grid-template-columns: minmax(320px, 40%) 1fr; }
+  }
+  /* ── 세로: 사진 위, 할 일 아래 ─────────────────── */
+  @media (max-aspect-ratio: 1/1) {
+    .bench { grid-template-rows: auto 1fr; }
+    .photo-pane { display: grid; grid-template-columns: 300px 1fr; align-items: stretch; }
+    .photo img { height: 100%; aspect-ratio: auto; min-height: 210px; }
+    .side { max-height: 236px; }
+    .goal { display: none; }
+    .phase span.lbl { display: none; }
+    .phase { font-size: 14px; padding: 0 12px; }
+    .viewer { height: 340px; }
+  }
+  @media (max-width: 700px) {
+    .bar { gap: 8px; padding: 0 10px; }
+    .bar .back span, .phase span.lbl, .who b { display: none; }
+    .thumb { width: 44px; height: 44px; }
+    .photo-pane { grid-template-columns: 1fr; }
+    .choices, .cands, .then-now, .pair { grid-template-columns: 1fr; }
+    .then-now .arrow { transform: rotate(90deg); justify-self: center; }
+    .picker-grid { grid-template-columns: repeat(2, 1fr); }
+    .modes { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body class="student">
+<header class="bar">
+  <button class="btn-quiet back" type="button" data-act="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>사진 모음</span></button>
+  <nav class="thumbs" aria-label="탐구할 사진" id="thumbs"></nav>
+  <p class="goal" id="goal"></p>
+  <p class="phase" id="phase" role="status"><span class="lbl">선생님 ·</span> 지금은 <b id="phase-name">하나씩 탐구</b> 시간</p>
+  <div class="who"><b>3모둠</b><span class="sync ok" id="sync" role="status">선생님께 전달됨</span></div>
+</header>
+
+<div class="announce" id="announce" role="alert">
+  <p><b>선생님이 ‘발견 모아보기’ 시간으로 넘어갔어요.</b><small>지금 쓰던 내용은 이 기기에 저장돼 있어요.</small></p>
+  <button class="btn btn-primary" type="button" data-act="go-summary">발견 모아보기로 가기</button>
+  <button class="btn btn-quiet" type="button" data-act="dismiss">이 사진 마저 하기</button>
+</div>
+
+<main class="bench">
+  <aside class="photo-pane">
+    <figure class="photo"><img id="photo" src="assets/photos/bin.jpg" alt="복도에 놓인 원통 모양 쓰레기통 사진"><figcaption><span>발견 1</span><em id="cap" style="font-style:normal">복도 쓰레기통</em></figcaption></figure>
+    <div class="side" id="side"></div>
+  </aside>
+
+  <section class="task" aria-labelledby="task-title">
+    <ol class="rail" id="rail" aria-label="이 사진의 탐구 단계"></ol>
+    <div class="task-scroll" id="scroll">
+      <header class="task-head"><h1 id="task-title"></h1><p id="task-lede"></p></header>
+      <div id="body"></div>
+    </div>
+    <footer class="task-actions" id="actions"></footer>
+  </section>
+</main>
+<p class="mock-badge">목업 · 예시 데이터</p>
+
+<script src="assets/shapes.js"></script>
+<script>
+const { SOLIDS, NETS, EXPLODE, GENERATE, NAMES, KIND, ICONS } = window.Shapes;
+const I = {
+  next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  bulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.9V16h5v-.2c0-.8.4-1.5 1-1.9A6 6 0 0 0 12 3z"/></svg>',
+  scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.3v.2"/></svg>',
+  wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M19 13a10 10 0 0 0-2.3-1.7M12 20h.01"/></svg>',
+  rotate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>',
+  box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>',
+  move: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>',
+  spin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="3 3"/><path d="M18 8a7 3 0 1 1-12 0"/><path d="M6 8l-1.5-2M6 8l2.2-.6"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>',
+};
+
+const PHOTOS = [
+  { img: 'bin', title: '복도 쓰레기통', step: 1 },
+  { img: 'box', title: '교탁 위 휴지 상자', step: 4, done: true },
+  { img: 'cone', title: '', step: 0 },
+  { img: 'ball', title: '', step: 0 },
+];
+const KINDS = [
+  { id: 'poly', name: '다면체', hint: '평평한 다각형 면으로만 둘러싸여요' },
+  { id: 'rev', name: '회전체', hint: '평면도형을 한 바퀴 돌린 모양이에요' },
+  { id: 'mix', name: '여러 도형의 결합', hint: '두 가지 이상이 붙어 있어요' },
+  { id: 'hold', name: '판단 보류', hint: '더 살펴보고 정할래요' },
+];
+const STEPS = [
+  { short: '내 생각', title: '먼저 우리 생각을 적어요', lede: 'AI를 보기 전에, 우리 눈으로 본 것부터 남겨요.' },
+  { short: '비교하기', title: '닮은 도형과 비교해요', lede: 'AI 후보는 정답이 아니라 비교할 거리예요.' },
+  { short: '성질 탐구', title: '돌리고 펼치며 확인해요', lede: '모델을 직접 움직이면서 면의 모양과 개수를 살펴요.' },
+  { short: '기록하기', title: '무엇을 발견했나요?', lede: '처음 생각과 비교해서, 최종 판단과 근거를 적어요.' },
+];
+const CANDS = [
+  { id: 'cylinder', why: '위아래 두 원이 같은 크기이고 옆면이 곧게 서 있어요.', simp: '뚜껑 손잡이와 테두리 홈은 생략했어요.' },
+  { id: 'frustum', why: '위가 아래보다 조금 넓어 보인다면 원뿔대에 가까워요.', simp: '사진의 원근 때문에 다르게 보일 수 있어요.' },
+  { id: 'hexprism', why: '옆면이 여러 장의 판으로 이어졌다면 각기둥일 수도 있어요.', simp: '판 사이 이음새가 보이는지 확인해 보세요.' },
+];
+const CORE = ['cube', 'cuboid', 'hexprism', 'pyramid', 'cylinder', 'cone', 'sphere', 'frustum'];
+const STARTERS = ['처음에는 ___라고 생각했지만,', '___을 관찰해서', '___으로 나타낼 수 있다고 판단했다.', '단, ___ 부분은 단순하게 보았다.'];
+
+const params = new URLSearchParams(location.search);
+const S = {
+  step: +(params.get('step') || 1), done: params.get('done') === '1', ai: params.get('ai') || 'idle',
+  online: params.get('net') !== 'off', err: params.get('err') === '1', announce: params.get('phase') === '1',
+  title: '복도 쓰레기통', guess: 'rev',
+  reason: params.get('err') === '1' ? '' : '위아래가 똑같은 원 모양이고 옆면이 둥글게 말려 있어서 회전체라고 생각했어요.',
+  model: 'cylinder', pickerOpen: false, mode: params.get('mode') || 'solid', amount: 100, paused: false,
+  missions: [true, false, false],
+  reflection: '처음에는 회전체라고만 생각했지만, 직사각형을 한 바퀴 돌리면 같은 모양이 되는 것을 관찰해서 원기둥으로 나타낼 수 있다고 판단했다.',
+  simplification: '뚜껑의 손잡이와 테두리 홈은 단순하게 보았다.',
+  phaseName: '하나씩 탐구',
+};
+if (S.step > 1) S.reason ||= '위아래가 똑같은 원 모양이고 옆면이 둥글게 말려 있어서 회전체라고 생각했어요.';
+
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function renderBar() {
+  const cur = S.done ? 4 : S.step;
+  $('thumbs').innerHTML = PHOTOS.map((p, i) => {
+    const st = i === 0 ? (S.done ? 4 : S.step - 1) : p.step;
+    const isDone = i === 0 ? S.done : p.done;
+    const label = `발견 ${i + 1} · ${p.title || '이름 붙이기 전'} · ${isDone ? '탐구 완료' : st ? st + '/4단계' : '시작 전'}`;
+    return `<button type="button" class="thumb ${i === 0 ? 'is-current' : ''} ${isDone ? 'is-done' : ''}" ${i === 0 ? 'aria-current="true"' : ''} aria-label="${label}">
+      <img src="assets/photos/${p.img}.jpg" alt=""><span class="prog">${[0, 1, 2, 3].map((k) => `<i class="${k < st ? 'on' : ''}"></i>`).join('')}</span></button>`;
+  }).join('');
+  const doneCount = PHOTOS.filter((p, i) => (i === 0 ? S.done : p.done)).length;
+  $('goal').innerHTML = `<b>탐구 ${doneCount} / 3</b>3장 하면 미션 완료`;
+  const sync = $('sync');
+  sync.className = 'sync ' + (S.online ? 'ok' : 'wait');
+  sync.textContent = S.online ? '선생님께 전달됨' : '이 기기에 저장 중 · 연결되면 보내요';
+  $('phase-name').textContent = S.phaseName;
+  $('announce').classList.toggle('show', S.announce);
+  $('cap').textContent = S.title || '이름 붙이기 전';
+}
+
+function renderRail() {
+  const cur = S.done ? 5 : S.step;
+  $('rail').innerHTML = STEPS.map((st, i) => {
+    const n = i + 1, cls = n < cur ? 'done' : n === cur ? 'now' : 'todo';
+    const attrs = cls === 'todo' ? 'aria-disabled="true"' : cls === 'now' ? 'aria-current="step"' : '';
+    return `<li class="${cls}"><button type="button" data-step="${n}" ${attrs}><span class="num">${cls === 'done' ? I.check.replace('stroke-width="2.6"', 'stroke-width="3" width="14" height="14"') : n}</span>${st.short}</button></li>`;
+  }).join('');
+}
+
+function chip(kind) {
+  const k = KINDS.find((x) => x.id === kind) || KINDS[3];
+  return `<span class="chip ${k.id}">${ICONS[k.id]}${k.name}</span>`;
+}
+
+function renderSide() {
+  let h = '';
+  if (S.done) {
+    h = `<div class="note"><span>${I.check}</span><div><h3>선생님 게시판에 함께 올라갔어요</h3>사진, 처음 생각, 비교한 모델, 최종 판단이 한 장으로 보여요.</div></div>`;
+  } else if (S.step === 1) {
+    h = `<div class="note warm">${I.bulb}<div>한 가지로 정하기 어렵다면 ‘여러 도형의 결합’이나 ‘판단 보류’를 골라도 좋아요. <b>이유가 중요해요.</b></div></div>
+      <div class="note">${I.scan}<div>AI 후보는 다음 단계에서 비교해요. 우리 생각을 먼저 적어 두면 AI가 맞는지 따져 볼 수 있어요.</div></div>`;
+  } else if (S.step === 2 || S.step === 4) {
+    h = `<div class="note" style="display:block"><h3 style="margin-bottom:8px">우리 처음 생각</h3>${chip(S.guess)}<p style="margin-top:8px">${esc(S.reason)}</p></div>`;
+    if (S.step === 4) h += `<div class="note">${I.check}<div>저장하면 선생님 게시판에 사진·처음 생각·모델·최종 판단이 함께 보여요.</div></div>`;
+  } else if (S.step === 3) {
+    const ms = ['돌려서 면의 모양을 살펴요', '펼치거나 면을 나눠서 확인해요', '실제 물체와 다른 부분을 찾아요'];
+    h = `<div class="mission"><h3>관찰 미션</h3>${ms.map((m, i) => `<label><input type="checkbox" data-mission="${i}" ${S.missions[i] ? 'checked' : ''}><span>${m}</span></label>`).join('')}</div>`;
+  }
+  $('side').innerHTML = h;
+}
+
+function stepBody() {
+  if (S.done) return finale();
+  if (S.step === 1) {
+    const reasonErr = S.err && !S.reason.trim();
+    return `
+      <label class="field"><span>물체 이름</span><input type="text" id="f-title" value="${esc(S.title)}" maxlength="60" placeholder="예: 복도 화분"></label>
+      <fieldset><legend>어떤 입체로 볼 수 있을까요?</legend><div class="choices">
+        ${KINDS.map((k) => `<button type="button" class="choice k-${k.id}" data-guess="${k.id}" aria-pressed="${S.guess === k.id}"><span class="ic">${ICONS[k.id]}</span><strong>${k.name}</strong><small>${k.hint}</small></button>`).join('')}
+      </div></fieldset>
+      <label class="field"><span>그렇게 생각한 이유</span>
+        <textarea id="f-reason" maxlength="500" placeholder="어떤 면이나 모양을 봤나요? 예: 평평한 다각형 면으로만 둘러싸여 있어서…" ${reasonErr ? 'aria-invalid="true" aria-describedby="reason-err"' : ''}>${esc(S.reason)}</textarea>
+        ${reasonErr ? `<p class="field-error" id="reason-err">${I.alert}이유를 한 줄이라도 적어 주세요. 어떤 면을 봤는지 쓰면 돼요.</p>` : ''}
+      </label>`;
+  }
+  if (S.step === 2) {
+    if (!S.online) {
+      return `<div class="fail" style="background:var(--wait-bg)"><h2 style="color:var(--wait-ink)">${I.wifi}지금은 와이파이가 끊겼어요</h2><p>AI 후보는 연결된 뒤에 받을 수 있어요. 그동안 다음 단계에서 도형을 직접 골라 탐구해도 좋아요. 쓴 내용은 이 기기에 저장돼요.</p>
+        <div class="row"><button class="btn btn-primary" type="button" data-act="to3">직접 도형 고르러 가기 ${I.next}</button></div></div>`;
+    }
+    if (S.ai === 'fail') {
+      return `<div class="fail"><h2>${I.alert}지금은 AI가 사진을 읽지 못했어요</h2><p>학교 와이파이가 잠깐 불안정할 수 있어요. 우리 눈으로 비교해도 충분해요. 다음 단계에서 원기둥·원뿔 같은 도형을 직접 골라 볼 수 있어요.</p>
+        <div class="row"><button class="btn btn-primary" type="button" data-act="to3">직접 도형 고르러 가기 ${I.next}</button><button class="btn btn-secondary" type="button" data-ai="ok">다시 시도</button></div></div>`;
+    }
+    if (S.ai === 'idle') {
+      return `<div class="ai-intro"><div class="faint">${SOLIDS.cylinder()}${SOLIDS.cone()}${SOLIDS.cuboid()}</div>
+        <div><h2>사진을 AI에게 보여 줄까요?</h2><p>손잡이 같은 작은 부분은 빼고, 몸통의 큰 모양으로 닮은 도형 후보를 3개 찾아 줘요.</p></div>
+        <div class="row"><button class="btn btn-primary" type="button" data-ai="ok">${I.scan}사진 인식하고 후보 찾기</button><button class="btn btn-quiet" type="button" data-act="to3">AI 없이 직접 고를래요</button></div></div>`;
+    }
+    return `<div class="${S.paused ? 'paused' : ''}">
+      <div class="cands-head"><p>AI가 찾은 후보 3개 · 가장 닮은 도형을 하나 골라요</p>
+        <button class="btn-quiet" type="button" data-act="pause" aria-pressed="${S.paused}">${S.paused ? I.play + ' 다시 돌리기' : I.pause + ' 회전 멈추기'}</button></div>
+      <div class="cands">${CANDS.map((c) => `
+        <article class="cand ${S.model === c.id ? 'sel' : ''}"><div class="stage">${SOLIDS[c.id]()}</div>
+          <h3>${NAMES[c.id]} <span class="chip ${KIND[c.id]}">${KINDS.find((k) => k.id === KIND[c.id]).name}</span></h3>
+          <p>${c.why}</p><p class="simp">${c.simp}</p>
+          <button class="btn btn-secondary" type="button" data-model="${c.id}" aria-pressed="${S.model === c.id}">${S.model === c.id ? I.check + ' 비교할 도형' : '이 도형으로 비교'}</button></article>`).join('')}</div>
+      <div class="note warm ask">${I.bulb}<div><b>AI의 질문</b> · 사진에서 위아래 원의 크기가 정말 같을까요? 쓰레기통 옆에 서서 확인해 보세요.</div></div></div>`;
+  }
+  if (S.step === 3) {
+    const smooth = KIND[S.model] === 'rev';
+    const hasNet = !!NETS[S.model];
+    const views = { solid: SOLIDS, net: NETS, explode: EXPLODE, generate: GENERATE };
+    const art = (views[S.mode] && views[S.mode][S.model]) ? views[S.mode][S.model]() : SOLIDS[S.model]();
+    const counts = smooth
+      ? (S.model === 'sphere' ? '<span>굽은 면 <b>1</b></span>' : S.model === 'cone' ? '<span>밑면 <b>1</b></span><span>옆면 <b>1</b> (굽은 면)</span>' : '<span>밑면 <b>2</b></span><span>옆면 <b>1</b> (굽은 면)</span>')
+      : ({ cube: [6, 12, 8], cuboid: [6, 12, 8], hexprism: [8, 18, 12], pyramid: [5, 8, 5] }[S.model] || [0, 0, 0]).map((n, i) => `<span>${['면', '모서리', '꼭짓점'][i]} <b>${n}</b></span>`).join('');
+    const hint = { cylinder: '두 밑면은 서로 평행하고 합동인 원이에요. 옆면을 펼치면 어떤 모양이 될까요?', cone: '밑면은 원 하나, 옆면은 펼치면 부채꼴이에요.', sphere: '구는 찢거나 늘이지 않고는 평면으로 펼칠 수 없어요.', frustum: '두 밑면은 평행하지만 크기가 달라요.' }[S.model] || '면의 모양과 개수를 세어 보고, 실제 물체와 비교해 보세요.';
+    return `
+      <div class="model-row"><span class="mini">${SOLIDS[S.model]()}</span><div><small>사진과 비교할 모델</small><strong>${NAMES[S.model]}</strong></div>
+        <button class="btn btn-secondary" type="button" data-act="picker" aria-expanded="${S.pickerOpen}">${S.pickerOpen ? '목록 닫기' : '다른 도형 고르기'}</button></div>
+      ${S.pickerOpen ? `<div class="picker"><p>1학년에서 자주 보는 도형부터 보여 줘요.</p><div class="picker-grid">${CORE.map((id) => `<button type="button" data-model="${id}" aria-pressed="${S.model === id}">${SOLIDS[id]()}${NAMES[id]}</button>`).join('')}</div>
+        <button class="btn-quiet more" type="button">더 많은 도형 보기 · 이름으로 찾기 (79개)</button></div>` : ''}
+      <div class="modes" role="group" aria-label="모델 보기 방법">
+        <button type="button" data-mode="solid" aria-pressed="${S.mode === 'solid'}">${I.box}돌려 보기</button>
+        <button type="button" data-mode="net" aria-pressed="${S.mode === 'net'}" ${hasNet ? '' : 'disabled'}>${I.layers}펼치고 접기</button>
+        <button type="button" data-mode="explode" aria-pressed="${S.mode === 'explode'}">${I.move}면 나누기</button>
+        <button type="button" data-mode="generate" aria-pressed="${S.mode === 'generate'}" ${smooth ? '' : 'disabled'}>${I.spin}회전 생성</button>
+      </div>
+      <div class="viewer"><div class="art" id="art">${art}</div>
+        <div class="tools"><button type="button" aria-label="크게 보기">${I.plus}</button><button type="button" aria-label="작게 보기">${I.minus}</button><button type="button" aria-label="처음 각도로">${I.rotate}</button></div>
+        <div class="counts">${counts}</div></div>
+      ${S.mode === 'net' || S.mode === 'generate' ? `<div class="scrub"><button type="button" aria-label="다시 재생">${I.play}</button><span>${S.mode === 'net' ? '접힌 모양' : '0°'}</span>
+        <input type="range" min="0" max="100" value="${S.amount}" id="amount" aria-label="${S.mode === 'net' ? '펼친 정도' : '돌린 각도'}"><span>${S.mode === 'net' ? '펼친 모양' : '360°'}</span></div>` : ''}
+      <div class="note warm hint">${I.bulb}<div>${hint}</div></div>`;
+  }
+  return `
+    <div class="then-now"><div><small>처음 생각</small>${chip(S.guess)}<p>${esc(S.reason)}</p></div>
+      <span class="arrow">${I.next}</span>
+      <div><small>비교한 모델</small><div class="model">${SOLIDS[S.model]()}<strong>${NAMES[S.model]}</strong></div></div></div>
+    <label class="field"><span>최종 판단과 그 근거</span>
+      <div class="starters" aria-label="문장 시작 도우미">${STARTERS.map((t) => `<button type="button" data-starter="${esc(t)}">${t}</button>`).join('')}</div>
+      <textarea id="f-reflection" maxlength="1000" placeholder="처음에는 ___라고 생각했지만, ___을 관찰해서 ___으로 나타낼 수 있다고 판단했다.">${esc(S.reflection)}</textarea></label>
+    <label class="field"><span>실제 물체에서 단순하게 본 부분</span>
+      <textarea id="f-simp" maxlength="500" placeholder="예: 화분의 테두리와 작은 무늬는 생략했어요." style="min-height:84px">${esc(S.simplification)}</textarea></label>`;
+}
+
+function finale() {
+  return `<div class="finale">
+    <div class="seal"><i>${I.check}</i><div><h1 style="font-size:26px">발견 1 탐구를 마쳤어요!</h1><p>처음 생각에서 어떻게 달라졌는지 한눈에 볼 수 있어요.</p></div></div>
+    <div class="pair"><figure><img src="assets/photos/bin.jpg" alt="쓰레기통 사진"><figcaption>우리가 찍은 사진</figcaption></figure>
+      <figure><div class="m">${SOLIDS[S.model]()}</div><figcaption>${NAMES[S.model]}으로 보았어요</figcaption></figure></div>
+    <div class="story"><p><b>처음 생각</b> · ${KINDS.find((k) => k.id === S.guess).name}. ${esc(S.reason)}</p><p><b>최종 판단</b> · ${esc(S.reflection)}</p></div>
+    <div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span>기본 미션 2 / 3 · 한 장만 더 탐구하면 완료예요</div></div>`;
+}
+
+function renderActions() {
+  const a = $('actions');
+  if (S.done) {
+    a.innerHTML = `<button class="btn btn-secondary" type="button" data-act="summary">발견 모아보기</button><span class="spacer"></span>
+      <button class="btn btn-primary" type="button" data-act="next-photo">다음 사진 탐구하기 ${I.next}</button>`;
+    return;
+  }
+  const labels = { 1: '다음: 비교하기', 2: '다음: 성질 탐구', 3: '다음: 기록하기', 4: '탐구 마치고 저장' };
+  const prev = S.step > 1 ? `<button class="btn btn-secondary" type="button" data-act="prev">${I.prev}이전</button>` : '';
+  a.innerHTML = `${prev}<span class="spacer"></span>
+    <button class="btn btn-primary" type="button" data-act="next">${labels[S.step]}${S.step < 4 ? I.next : I.check}</button>`;
+}
+
+function render(scrollTop = false) {
+  const st = STEPS[(S.done ? 4 : S.step) - 1];
+  document.querySelector('.task-head').hidden = S.done;
+  $('task-title').textContent = st.title;
+  $('task-lede').textContent = S.done ? '잘했어요. 선생님 게시판에도 올라갔어요.' : st.lede;
+  $('body').innerHTML = stepBody();
+  renderBar(); renderRail(); renderSide(); renderActions();
+  if (scrollTop) $('scroll').scrollTop = 0;
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return;
+  const d = t.dataset;
+  if (d.guess) { S.guess = d.guess; render(); }
+  else if (d.model) { S.model = d.model; if (!NETS[S.model] && S.mode === 'net') S.mode = 'solid'; if (KIND[S.model] !== 'rev' && S.mode === 'generate') S.mode = 'solid'; render(); }
+  else if (d.mode) { S.mode = d.mode; S.amount = 100; render(); }
+  else if (d.ai) { S.ai = d.ai; render(); }
+  else if (d.starter) { const ta = $('f-reflection'); ta.value = (ta.value ? ta.value.trimEnd() + ' ' : '') + d.starter; S.reflection = ta.value; ta.focus(); }
+  else if (d.step && t.closest('li.done')) { S.step = +d.step; S.done = false; render(true); }
+  else if (d.act === 'next') {
+    if (S.step === 1 && !S.reason.trim()) { S.err = true; render(); $('f-reason').focus(); return; }
+    if (S.step === 4) { S.done = true; render(true); return; }
+    S.err = false; S.step++; render(true);
+  }
+  else if (d.act === 'prev') { S.step = Math.max(1, S.step - 1); render(true); }
+  else if (d.act === 'to3') { S.step = 3; S.pickerOpen = true; render(true); }
+  else if (d.act === 'picker') { S.pickerOpen = !S.pickerOpen; render(); }
+  else if (d.act === 'pause') { S.paused = !S.paused; render(); }
+  else if (d.act === 'dismiss') { S.announce = false; render(); }
+  else if (d.act === 'go-summary') { S.announce = false; render(); }
+});
+document.addEventListener('input', (e) => {
+  const id = e.target.id;
+  if (id === 'f-title') { S.title = e.target.value; $('cap').textContent = S.title || '이름 붙이기 전'; }
+  if (id === 'f-reason') { S.reason = e.target.value; if (S.err && S.reason.trim()) { S.err = false; e.target.removeAttribute('aria-invalid'); document.getElementById('reason-err')?.remove(); } }
+  if (id === 'f-reflection') S.reflection = e.target.value;
+  if (id === 'f-simp') S.simplification = e.target.value;
+  if (id === 'amount') { S.amount = +e.target.value; const art = $('art'); art.style.transform = `scale(${0.55 + 0.45 * S.amount / 100})`; art.style.opacity = 0.35 + 0.65 * S.amount / 100; }
+});
+document.addEventListener('change', (e) => { if (e.target.dataset.mission) S.missions[+e.target.dataset.mission] = e.target.checked; });
+
+// 목업 보기 페이지에서 상태를 바꿀 때
+window.addEventListener('message', (e) => {
+  const m = e.data; if (!m || m.type !== 'mock') return;
+  if ('step' in m) { S.step = m.step; S.done = false; }
+  if ('done' in m) S.done = m.done;
+  if ('ai' in m) S.ai = m.ai;
+  if ('online' in m) S.online = m.online;
+  if ('err' in m) { S.err = m.err; if (m.err) { S.step = 1; S.done = false; S.reason = ''; } else if (!S.reason) S.reason = '위아래가 똑같은 원 모양이고 옆면이 둥글게 말려 있어서 회전체라고 생각했어요.'; }
+  if ('mode' in m) S.mode = m.mode;
+  if ('announce' in m) { S.announce = m.announce; S.phaseName = m.announce ? '발견 모아보기' : '하나씩 탐구'; requestAnimationFrame(() => $('phase').classList.add('flash')); setTimeout(() => $('phase').classList.remove('flash'), 1500); }
+  render(true);
+});
+if (S.announce) S.phaseName = '발견 모아보기';
+render();
+</script>
+</body>
+</html>
