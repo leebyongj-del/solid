@@ -4,8 +4,10 @@
 앱 코드(`app/`, `components/`, `main` 브랜치)는 건드리지 않았고, 이 폴더만 새로 추가했어요.
 
 - 점검 보고서: [CRITIQUE.md](CRITIQUE.md)
-- 바로 열어 보기(상태 전환 버튼 포함): [목업 보기 페이지](https://htmlpreview.github.io/?https://github.com/leebyongj-del/solid/blob/design/uiux-mockup/design-mockup/index.html)
-- 로컬에서 보기: 이 폴더에서 아래 명령을 실행한 뒤 <http://localhost:5188> 를 열어요.
+- 브라우저에서 바로 열어 보기(화면 안에서 직접 눌러 볼 수 있어요)
+  - [학생 탐구 화면](https://htmlpreview.github.io/?https://github.com/leebyongj-del/solid/blob/design/uiux-mockup/design-mockup/student-explore.html)
+  - [전자칠판 투사 모드](https://htmlpreview.github.io/?https://github.com/leebyongj-del/solid/blob/design/uiux-mockup/design-mockup/teacher-projector.html)
+- 가로·세로·칠판을 한 화면에서 비교하고 상태 버튼으로 바꿔 보려면 로컬에서 `index.html`을 열어요. 이 폴더에서 아래 명령을 실행한 뒤 <http://localhost:5188> 를 열면 돼요.
 
 ```bash
 python3 -m http.server 5188
