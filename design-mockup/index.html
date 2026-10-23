@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>입체 탐험대 UI 목업</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<style>
+  body { background: #f4ede4; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 32px 24px 64px; }
+  .intro { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; margin-bottom: 28px; }
+  .intro h1 { font-size: 34px; font-weight: 800; }
+  .intro p { margin-top: 8px; max-width: 64ch; color: var(--text); }
+  .intro nav { display: flex; gap: 8px; flex-wrap: wrap; }
+  .intro nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); color: var(--ink); font-weight: 700; font-size: 15px; text-decoration: none; }
+  .intro nav a:hover { border-color: var(--plum-mark); }
+
+  section.screen { margin-top: 36px; }
+  .screen > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 12px; }
+  .screen > header h2 { font-size: 24px; font-weight: 800; }
+  .screen > header p { color: var(--muted); font-size: 15px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; padding: 10px; border-radius: 16px; background: var(--paper); border: 1px solid var(--line); }
+  .controls .lbl { font-size: 14px; font-weight: 700; color: var(--muted); padding: 0 6px 0 4px; }
+  .controls button { min-height: 44px; padding: 0 14px; border-radius: 12px; font-size: 15px; font-weight: 700; color: var(--ink); background: var(--sunk); }
+  .controls button:hover { background: var(--plum-soft); }
+  .controls button[aria-pressed="true"] { background: var(--plum); color: #fff; }
+  .controls .sep { width: 1px; height: 28px; background: var(--line); margin: 0 4px; }
+
+  .frames { display: grid; grid-template-columns: 1180fr 560fr; gap: 20px; align-items: start; }
+  .frame { position: relative; border-radius: 22px; overflow: hidden; background: #2f272c; padding: 10px; box-shadow: var(--shadow-float); }
+  .frame .vp { position: relative; overflow: hidden; border-radius: 14px; background: var(--cream); }
+  .frame iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; }
+  .frame figcaption { padding: 8px 4px 0; font-size: 13px; font-weight: 700; color: #e9dde3; }
+  .open { display: inline-block; margin-top: 8px; font-size: 14px; color: var(--plum); font-weight: 700; }
+
+  .changes { margin-top: 44px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .changes h2 { grid-column: 1 / -1; font-size: 24px; font-weight: 800; }
+  .change { padding: 18px 20px; border-radius: 18px; background: var(--paper); border: 1px solid var(--line); }
+  .change h3 { font-size: 17px; margin-bottom: 8px; }
+  .change p { font-size: 15px; line-height: 1.65; }
+  .change p + p { margin-top: 6px; }
+  .change .was { color: var(--muted); }
+  .tag { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; background: var(--err-bg); color: var(--err-ink); vertical-align: 2px; }
+  .tag.p2 { background: var(--wait-bg); color: var(--wait-ink); }
+  .foot { margin-top: 36px; font-size: 14px; color: var(--muted); }
+  @media (max-width: 1000px) { .frames, .changes, .intro { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <div>
+      <h1>입체 탐험대 UI 목업</h1>
+      <p>지금의 따뜻한 크림·모브 인상은 그대로 두고, 화면 구조·글자 대비·색의 역할만 정리한 시안입니다. 기능과 문구는 앱과 같고, 사진과 모둠 기록은 예시예요. 아래 버튼으로 상태를 바꿔 보고, 화면 안에서도 직접 눌러 볼 수 있어요.</p>
+    </div>
+    <nav aria-label="바로 가기">
+      <a href="student-explore.html" target="_blank" rel="noopener">학생 화면 크게</a>
+      <a href="teacher-projector.html" target="_blank" rel="noopener">전자칠판 크게</a>
+      <a href="CRITIQUE.md">점검 보고서</a>
+    </nav>
+  </header>
+
+  <section class="screen" aria-labelledby="h-student">
+    <header><h2 id="h-student">학생 · 사진 한 장 작업대</h2><p>태블릿 가로 1180×820 · 세로 820×1180</p></header>
+    <div class="controls" id="student-controls">
+      <span class="lbl">단계</span>
+      <button type="button" data-step="1" aria-pressed="true">1 내 생각</button>
+      <button type="button" data-step="2" aria-pressed="false">2 비교하기</button>
+      <button type="button" data-step="3" aria-pressed="false">3 성질 탐구</button>
+      <button type="button" data-step="4" aria-pressed="false">4 기록하기</button>
+      <button type="button" data-done="1" aria-pressed="false">완료</button>
+      <span class="sep"></span><span class="lbl">상태</span>
+      <button type="button" data-err aria-pressed="false">빈칸으로 다음 누름</button>
+      <button type="button" data-ai="ok" aria-pressed="false">AI 후보 받음</button>
+      <button type="button" data-ai="fail" aria-pressed="false">AI 연결 실패</button>
+      <button type="button" data-net aria-pressed="false">와이파이 끊김</button>
+      <button type="button" data-net3 aria-pressed="false">펼치고 접기</button>
+      <button type="button" data-announce aria-pressed="false">선생님이 단계 넘김</button>
+    </div>
+    <div class="frames">
+      <div><figure class="frame" style="margin:0"><div class="vp" data-w="1180" data-h="820"><iframe id="f-land" src="student-explore.html" width="1180" height="820" title="학생 탐구 화면 · 태블릿 가로"></iframe></div><figcaption>가로</figcaption></figure></div>
+      <div><figure class="frame" style="margin:0"><div class="vp" data-w="820" data-h="1180"><iframe id="f-port" src="student-explore.html" width="820" height="1180" title="학생 탐구 화면 · 태블릿 세로"></iframe></div><figcaption>세로</figcaption></figure></div>
+    </div>
+  </section>
+
+  <section class="screen" aria-labelledby="h-board">
+    <header><h2 id="h-board">교사 · 전자칠판 투사 모드</h2><p>1920×1080 · 관리 메뉴 없이 사진과 분류가 주인공</p></header>
+    <div class="controls" id="board-controls">
+      <span class="lbl">수업 단계</span>
+      <button type="button" data-phase="0" aria-pressed="false">사진 모으기</button>
+      <button type="button" data-phase="1" aria-pressed="true">하나씩 탐구</button>
+      <button type="button" data-phase="2" aria-pressed="false">발견 모아보기</button>
+      <button type="button" data-phase="3" aria-pressed="false">AI 오류 탐정</button>
+      <span class="sep"></span>
+      <button type="button" data-spot aria-pressed="false">모둠 발견 크게 보기</button>
+      <button type="button" data-dock aria-pressed="false">교사 조작 막대 보기</button>
+    </div>
+    <figure class="frame" style="margin:0"><div class="vp" data-w="1920" data-h="1080"><iframe id="f-board" src="teacher-projector.html" width="1920" height="1080" title="전자칠판 투사 모드"></iframe></div><figcaption>1920×1080</figcaption></figure>
+  </section>
+
+  <section class="changes" aria-labelledby="h-changes">
+    <h2 id="h-changes">무엇이 바뀌었나</h2>
+    <article class="change"><h3><span class="tag">P1</span>학생 화면의 띠 12개 → 바 하나 + 작업대</h3>
+      <p class="was">전: 상단바·수업 리본·탭 1–4·진행 카운터·사진 띠·AI 배너·단계 1–4가 쌓여 첫 화면에 입력칸이 없었어요.</p>
+      <p>후: 68px 바 하나(사진 4장과 진행 막대, 선생님 단계, 전달 상태)만 남겼어요. 사진은 왼쪽(세로는 위)에 크게, 할 일은 카드 하나에 두고 다음 버튼은 카드 아래에 고정했어요. 단계를 넘겨도 카드 안에서만 스크롤이 처음으로 돌아가요.</p></article>
+    <article class="change"><h3><span class="tag">P1</span>AI는 2단계 안으로</h3>
+      <p class="was">전: 1단계에서 가장 진한 버튼이 “AI로 사진 살펴보기”라 내 생각을 건너뛸 수 있었어요.</p>
+      <p>후: AI는 ‘비교하기’ 단계에만 나와요. 실패하거나 와이파이가 끊기면 그 자리에서 “직접 도형 고르러 가기”로 이어져요. 단계 막대는 지나온 단계만 누를 수 있어요.</p></article>
+    <article class="change"><h3><span class="tag">P1</span>글자 대비와 크기</h3>
+      <p class="was">전: 보조 글자 2.1–2.9:1, 7–11px 글자 114곳.</p>
+      <p>후: 글자 색을 잉크(11.9:1)·본문(8.4:1)·보조(5.8:1) 세 가지로 줄였어요. 학생 본문은 16–18px, 칠판은 1080p 기준 17px 이상, 카드 제목 22px, 타이머 72px이에요. 한글 머리말의 넓은 자간과 영문 머리말은 뺐어요.</p></article>
+    <article class="change"><h3><span class="tag">P1</span>칠판은 분류 벽으로</h3>
+      <p class="was">전: 1080p 위 720px가 관리 UI였고 사진은 접힘선 아래에 있었어요.</p>
+      <p>후: 상단 128px에 수업 코드·지금 단계·타이머, 본문은 다면체/회전체/결합/보류/아직 생각 전 다섯 줄이에요. 아래에는 모둠별 진행이 있고, 오래 멈춘 모둠은 노란색으로 보여요. 카드를 누르면 사진과 모델, 처음 생각과 최종 판단이 크게 떠서 그대로 공유하기 장면이 돼요. 관리 조작은 오른쪽 위에 흐리게 숨겨 두었어요.</p></article>
+    <article class="change"><h3><span class="tag">P1</span>기본값이 사실처럼 보이지 않게</h3>
+      <p class="was">전: 손대지 않은 사진이 ‘판단 보류’·‘관찰 중인 물체’·‘6각기둥’으로 떴어요.</p>
+      <p>후: ‘아직 생각 전’ 줄과 ‘모델 고르기 전’ 표시를 따로 두었어요. 교사가 단계를 넘기면 학생 화면에 알림이 뜨고, 쓰던 내용은 저장된 채로 ‘마저 하기’를 고를 수 있어요. 수업 마감은 다른 단계 버튼과 떨어뜨리고 확인을 받게 했어요(…표시).</p></article>
+    <article class="change"><h3><span class="tag p2">P2</span>색에 역할 주기</h3>
+      <p class="was">전: 초록·모브 두 팔레트, 학생 주 버튼은 피치(배경 대비 1.36:1)라 비활성과 구별이 안 됐어요.</p>
+      <p>후: 행동 색은 모브 하나(흰 글자 6.0:1)로 통일했어요. 분류마다 색을 정했고(다면체 살구 · 회전체 청록 · 결합 라벤더 · 보류 모래), 학생 선택지와 칠판 줄이 같은 색을 써요. 오프라인은 노란색이에요.</p></article>
+  </section>
+
+  <p class="foot">목업은 정적인 HTML이고 앱 코드(main 브랜치)는 건드리지 않았어요. 사진은 예시 그림, 모둠 기록은 예시 문장이에요.</p>
+</div>
+
+<script>
+// 화면 크기에 맞춰 iframe을 축소한다
+const fit = () => document.querySelectorAll('.vp').forEach((vp) => {
+  const w = +vp.dataset.w, h = +vp.dataset.h, s = vp.clientWidth / w;
+  vp.style.height = h * s + 'px';
+  vp.querySelector('iframe').style.transform = `scale(${s})`;
+});
+new ResizeObserver(fit).observe(document.body); fit();
+
+const send = (ids, msg) => ids.forEach((id) => document.getElementById(id).contentWindow.postMessage({ type: 'mock', ...msg }, '*'));
+const press = (group, btn) => { group.querySelectorAll('[data-step],[data-done],[data-phase]').forEach((b) => b.setAttribute('aria-pressed', 'false')); btn.setAttribute('aria-pressed', 'true'); };
+const toggle = (btn) => { const on = btn.getAttribute('aria-pressed') !== 'true'; btn.setAttribute('aria-pressed', String(on)); return on; };
+const S = ['f-land', 'f-port'];
+
+document.getElementById('student-controls').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return; const g = e.currentTarget;
+  if (b.dataset.step) { press(g, b); send(S, { step: +b.dataset.step, done: false }); }
+  else if (b.dataset.done) { press(g, b); send(S, { done: true }); }
+  else if ('err' in b.dataset) { const on = toggle(b); if (on) press(g, g.querySelector('[data-step="1"]')); send(S, { err: on }); }
+  else if (b.dataset.ai) {
+    const on = toggle(b); g.querySelectorAll('[data-ai]').forEach((x) => x !== b && x.setAttribute('aria-pressed', 'false'));
+    press(g, g.querySelector('[data-step="2"]')); send(S, { step: 2, done: false, ai: on ? b.dataset.ai : 'idle' });
+  }
+  else if ('net' in b.dataset) { const on = toggle(b); send(S, { online: !on }); }
+  else if ('net3' in b.dataset) { const on = toggle(b); press(g, g.querySelector('[data-step="3"]')); send(S, { step: 3, done: false, mode: on ? 'net' : 'solid' }); }
+  else if ('announce' in b.dataset) { const on = toggle(b); send(S, { announce: on }); }
+});
+document.getElementById('board-controls').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return; const g = e.currentTarget;
+  if (b.dataset.phase) { press(g, b); send(['f-board'], { phase: +b.dataset.phase }); }
+  else if ('spot' in b.dataset) { send(['f-board'], { spot: toggle(b) }); }
+  else if ('dock' in b.dataset) { send(['f-board'], { dock: toggle(b) }); }
+});
+</script>
+</body>
+</html>
