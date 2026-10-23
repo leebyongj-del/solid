@@ -11,9 +11,13 @@ function SolidViewImpl({model,mode='solid',amount=0,labels=false,axis=false,sele
  useEffect(()=>{if(!autoRotate)return;const motion=matchMedia('(prefers-reduced-motion: reduce)');let frame=0,last=0;function animate(time:number){if(time-last>=40){const dt=last?Math.min(time-last,80):0;last=time;if(!document.hidden&&!motion.matches)setView(v=>({...v,y:v.y+dt*.0003,x:-.36+Math.sin(time*.0003)*.08}));}frame=requestAnimationFrame(animate);}frame=requestAnimationFrame(animate);return()=>cancelAnimationFrame(frame);},[autoRotate]);
  const m=useMemo(()=>mesh(model.id,model.n,model.h,model.r,model.top),[model]);
  const flat=mode==='net'?amount:0,parts=mode==='explode'?amount:0;
+ // A finished net is shown face-on: find the plane it lies in and turn the camera toward it as it unfolds.
+ const netFacing=useMemo(()=>{if(!m.canNet)return null;const pts=unfold(m,1).flat(),span=[0,1,2].map(k=>{const v=pts.map((p:number[])=>p[k]);return Math.max(...v)-Math.min(...v);}),k=span.indexOf(Math.min(...span));return k===1?{x:-Math.PI/2,y:0}:k===2?{x:0,y:0}:{x:0,y:Math.PI/2};},[m]);
  let raw=unfold(m,flat);if(mode==='generate'&&m.smooth)raw=raw.map((p:any,i:number)=>m.faces[i].indices.length===48?(amount===0?[]:amount===1?p:[[0,p[0][1],0],...p.slice(0,Math.max(2,Math.ceil(48*amount)))]):m.faces[i].indices.some((k:number)=>k%48<Math.ceil(48*amount))?p:[]).filter((p:any)=>p.length>=3);if(parts)raw=raw.map((p:any,i:number)=>{const offset=m.smooth?(m.faces[i].indices.length===48?[0,(p[0][1]>0?1:-1)*parts,0]:[parts*1.3,0,0]):mul(normal(p),parts*1.2);return p.map((v:any)=>add(v,offset));});
  const pivot=raw.length?center(raw.flat()):[0,0,0];const scale=preview?Math.min(120,150/(model.h/2+model.r*.3)):mini?38:68;const zoom=view.zoom*(flat?1/(1+flat*.5):1);
- function project(p:number[]){let [x,y,z]=add(p,mul(pivot,-1)),cy=Math.cos(view.y),sy=Math.sin(view.y),cx=Math.cos(view.x-flat*.9),sx=Math.sin(view.x-flat*.9);let xx=x*cy+z*sy,zz=-x*sy+z*cy;return [300+xx*scale*zoom,200-(y*cx-zz*sx)*scale*zoom,y*sx+zz*cx];}
+ const ease=flat*flat*(3-2*flat),toYaw=netFacing?netFacing.y+Math.round((view.y-netFacing.y)/(2*Math.PI))*2*Math.PI:0;
+ const tilt=netFacing?view.x+(netFacing.x-view.x)*ease:view.x-flat*.9,yaw=netFacing?view.y+(toYaw-view.y)*ease:view.y;
+ function project(p:number[]){let [x,y,z]=add(p,mul(pivot,-1)),cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(tilt),sx=Math.sin(tilt);let xx=x*cy+z*sy,zz=-x*sy+z*cy;return [300+xx*scale*zoom,200-(y*cx-zz*sx)*scale*zoom,y*sx+zz*cx];}
  const palette=preview?['#3c9ee8','#efb13b','#9d73db','#35b6aa','#f1808b','#6696df']:['#ffd1b5','#ffe9af','#e5d5f6','#cce8dc','#ffdce5','#d6e5fa'];
  const rendered=raw.map((p:any,i:number)=>{const pts=p.map(project),n=normal(p);return {i,p,pts,z:center(pts)[2],shade:.85+.15*Math.abs(n[1])};}).sort((a:any,b:any)=>a.z-b.z);
  const edges=m.smooth?[]:m.vertices.map((v:any,i:number)=>({p:project(v),i}));
